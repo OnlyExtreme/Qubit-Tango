@@ -206,7 +206,8 @@ private:
 
 TileMap map;
 int levelIdx = 0;
-bool inAnimation = false;
+bool inAnimationOut = false;
+bool inAnimationIn = false;
 float animationRadius = 0;
 
 
@@ -245,7 +246,7 @@ public:
 
     void checkWin() {
         if (successA && successB) {
-            inAnimation = true;
+            inAnimationOut = true;
         }
     }
 
@@ -404,7 +405,7 @@ int main()
                 update(keyPressed, levelList[levelIdx]);
             }
         }
-        if (inAnimation) {
+        if (inAnimationOut) {
             animationRadius += 50;
             sf::CircleShape circle;
             circle.setFillColor(sf::Color::Black);
@@ -412,8 +413,22 @@ int main()
             circle.setRadius(animationRadius);
             window.draw(circle);
             if (animationRadius > 1280) {
-                inAnimation = false;
+                inAnimationOut = false;
+                inAnimationIn = true;
                 levelIdx++;
+            }
+        }
+        else if (inAnimationIn) {
+            animationRadius -= 50;
+            sf::CircleShape circle;
+            circle.setFillColor(sf::Color::Black);
+            circle.setPosition({levelList[levelIdx].qa.position.x*64+32-animationRadius, levelList[levelIdx].qa.position.y*64+32-animationRadius});
+            circle.setRadius(animationRadius);
+            levelList[levelIdx].renderLevel(window);
+            window.draw(circle);
+            if (animationRadius < 0) {
+                inAnimationIn = false;
+                animationRadius = 0;
             }
         }
         else {
