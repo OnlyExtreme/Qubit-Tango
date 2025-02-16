@@ -2,24 +2,6 @@
 #include <chrono>
 
 sf::Texture T_SPRITES;
-constexpr std::array level = {
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
-    2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
-    2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
-    2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
-    2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
-    2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
-    2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
-    2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
-    2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
-    2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
-    2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
-};
-
 
 class GameObject {
 public:
@@ -42,6 +24,7 @@ public:
 class Qubit : public GameObject {
 public:
     bool state = false;
+    bool superposition = false;
     bool isEntangled = false;
     Qubit* target = nullptr;
 
@@ -65,6 +48,26 @@ public:
         state = !state;
         row = state;
     }
+
+    void toggleSuperposition() {
+        if (!superposition) {
+            superposition = true;
+            row = 2;
+        }
+        else {
+            superposition = false;
+            row = state;
+        }
+    }
+
+    void collapse() {
+        if (!superposition)
+            return;
+        superposition = false;
+        state = 1.0 * rand()/RAND_MAX < 0.5 ? false : true;
+        row = state;
+    }
+
 
     sf::Vector2f move(sf::Vector2f offset, const int* map) {
         if (position.x + offset.x < 0 || position.y + offset.y < 0)
@@ -113,7 +116,7 @@ public:
         row = _row;
         TargetState = tar;
         position = pos;
-        sprite.setTextureRect(sf::IntRect({2, row*16}, {16, 16}));
+        sprite.setTextureRect(sf::IntRect({0, row*16}, {16, 16}));
         sprite.setPosition({position.x * 64, position.y * 64});
         sprite.setScale({4.0f, 4.0f});
     }
@@ -124,17 +127,76 @@ public:
 };
 
 
-
-
-class CNOT : public GameObject {
+class HGate : public GameObject {
 public:
-    CNOT(int _row, sf::Vector2f pos) {
+    bool cooldown = false;
+    HGate(int _row, sf::Vector2f pos) {
         row = _row;
         position = pos;
-        sprite.setTextureRect(sf::IntRect({2, row*16}, {16, 16}));
+        sprite.setTextureRect(sf::IntRect({0, row*16}, {16, 16}));
         sprite.setPosition({position.x * 64, position.y * 64});
         sprite.setScale({4.0f, 4.0f});
     }
+
+    void superposition(Qubit& q) {
+        if (!cooldown) {
+            cooldown = true;
+            q.toggleSuperposition();
+        }
+    }
+};
+
+class Collapser : public GameObject {
+public:
+    bool cooldown = false;
+    Collapser(int _row, sf::Vector2f pos) {
+        row = _row;
+        position = pos;
+        sprite.setTextureRect(sf::IntRect({0, row*16}, {16, 16}));
+        sprite.setPosition({position.x * 64, position.y * 64});
+        sprite.setScale({4.0f, 4.0f});
+    }
+
+    void collapse(Qubit& q) {
+        if (!cooldown) {
+            cooldown = true;
+            q.collapse();
+        }
+    }
+
+};
+
+
+
+
+class CNOTEffect : public GameObject {
+public:
+    CNOTEffect(int _row, sf::Vector2f pos) {
+        row = _row;
+        position = pos;
+        sprite.setTextureRect(sf::IntRect({0, row*16}, {16, 16}));
+        sprite.setPosition({position.x * 64, position.y * 64});
+        sprite.setScale({4.0f, 4.0f});
+    }
+};
+
+class CNOTControl : public GameObject {
+public:
+    CNOTControl(int _row, sf::Vector2f pos) {
+        row = _row;
+        position = pos;
+        sprite.setTextureRect(sf::IntRect({0, row*16}, {16, 16}));
+        sprite.setPosition({position.x * 64, position.y * 64});
+        sprite.setScale({4.0f, 4.0f});
+    }
+};
+
+class CNOT {
+public:
+    CNOTControl control = CNOTControl(9, {-1, -1});
+    CNOTEffect effect = CNOTEffect(3, {-1, -1});
+
+    CNOT(CNOTControl _control, CNOTEffect _effect) : control(_control), effect(_effect) {}
 };
 
 class TileMap : public sf::Drawable, public sf::Transformable
@@ -216,6 +278,9 @@ public:
     std::vector<int> levelMap;
     std::vector<int> levelData;
     std::vector<XGate> xgates;
+    std::vector<HGate> hgates;
+    std::vector<Collapser> collapser;
+    std::vector<CNOT> cnots;
     Qubit qa = Qubit(0, {0, 0});
     Qubit qb = Qubit(0, {0, 0});
     Observer oba = Observer(0, {0, 0}, 1);
@@ -232,6 +297,14 @@ public:
         obb.animation();
         for (auto& x : xgates)
             x.animation();
+        for (auto& h: hgates)
+            h.animation();
+        for (auto& c : collapser)
+            c.animation();
+        for (auto& c : cnots) {
+            c.control.animation();
+            c.effect.animation();
+        }
 
         window.clear();
         window.draw(map);
@@ -239,6 +312,14 @@ public:
         window.draw(obb.sprite);
         for (auto& x : xgates)
             window.draw(x.sprite);
+        for (auto& h : hgates)
+            window.draw(h.sprite);
+        for (auto& c : collapser)
+            window.draw(c.sprite);
+        for (auto& c : cnots) {
+            window.draw(c.control.sprite);
+            window.draw(c.effect.sprite);
+        }
         if (!successA) window.draw(qa.sprite);
         if (!successB) window.draw(qb.sprite);
         window.draw(qb.sprite);
@@ -271,6 +352,18 @@ void update(const sf::Event::KeyPressed* keyPressed, Level& level) {
             x.cooldown = false;
         }
     } 
+    for (auto &h : level.hgates) {
+        if (h.position == newPos)
+            h.superposition(level.qa);
+        else
+            h.cooldown = false;
+    }
+    for (auto &c : level.collapser) {
+        if (c.position == newPos)
+            c.collapse(level.qa);
+        else
+            c.cooldown = false;
+    }  
     if (newPos == level.oba.position)
         level.successA = level.oba.checkWin(level.qa);
     newPos = {0, 0};
@@ -286,6 +379,18 @@ void update(const sf::Event::KeyPressed* keyPressed, Level& level) {
         if (x.position == newPos)
             x.applyEffect(level.qb);
     } 
+    for (auto &h : level.hgates) {
+        if (h.position == newPos)
+            h.superposition(level.qb);
+        else
+            h.cooldown = false;
+    }
+    for (auto &c : level.collapser) {
+        if (c.position == newPos)
+            c.collapse(level.qb);
+        else
+            c.cooldown = false;
+    }  
     if (newPos == level.obb.position)
         level.successB = level.obb.checkWin(level.qb);
     
@@ -328,16 +433,108 @@ Level level1 = {
         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
     },  // 9 for xgate, 5 for observer
     {XGate(4, sf::Vector2f(9, 8))},
+    {},{},{},
     Qubit(0, {4, 7}),
     Qubit(0, {-5, -5}),
-    Observer(5, {15, 7}, 1),
-    Observer(5, {-5, -5}, 0),
+    Observer(7, {15, 7}, 1),
+    Observer(7, {-5, -5}, 0),
     false, true
 };
 
-Level level2 = {
 
+Level level2 = {
+    {
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    },
+    {
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    },  // 9 for xgate, 5 for observer
+    {XGate(4, sf::Vector2f(9, 8))},
+    {HGate(5, sf::Vector2f(9, 6))},
+    {Collapser(6, sf::Vector2f(12, 6))},
+    {},
+    Qubit(0, {4, 7}),
+    Qubit(0, {-5, -5}),
+    Observer(8, {15, 7}, 0),
+    Observer(7, {-5, -5}, 0),
+    false, true
 };
+
+Level level3 = {
+    {
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    },
+    {
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 1, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 1, 2, 2, 2, 
+        2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    },  // 9 for xgate, 5 for observer
+    {XGate(4, sf::Vector2f(9, 8))},
+    {HGate(5, sf::Vector2f(9, 6))},
+    {Collapser(6, sf::Vector2f(12, 6))},
+    {CNOT(CNOTControl(9, {9, 5}), CNOTEffect(3, {9, 9}))},
+    Qubit(0, {4, 5}),
+    Qubit(0, {4, 9}),
+    Observer(8, {15, 5}, 0),
+    Observer(7, {15, 9}, 0),
+    false, true
+};
+
+
 
 Level levelWin = {
     {
@@ -375,6 +572,7 @@ Level levelWin = {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     },
     {},
+    {},{},{},
     Qubit(0, {10, 7}),
     Qubit(1, {11, 7}),
     Observer(10, {0, 0}, 0),
@@ -382,11 +580,12 @@ Level levelWin = {
     false, false
 };
 
-Level levelList[] = {level1, levelWin};
+Level levelList[] = {level1, level2, levelWin};
 
 
 int main()
 {
+    srand(unsigned(time(0)));
     auto window = sf::RenderWindow(sf::VideoMode({1280u, 960u}), "Qubit Tango");
     window.setFramerateLimit(60);
 
